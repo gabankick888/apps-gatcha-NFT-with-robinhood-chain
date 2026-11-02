@@ -1,0 +1,79 @@
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract RobinhoodNFTGacha is ERC721, Ownable {
+
+    uint256 public mintPrice = 0.001 ether;
+    uint256 public nextTokenId = 1;
+
+    mapping(uint256 => string) public cardRarity;
+
+    event GachaOpened(
+        address indexed player,
+        uint256 tokenId,
+        string rarity
+    );
+
+    constructor()
+        ERC721("Robinhood Gacha Cards", "RHGC")
+        Ownable(msg.sender)
+    {}
+
+    function openGacha() external payable {
+
+        require(msg.value >= mintPrice, "Insufficient payment");
+
+        uint256 tokenId = nextTokenId++;
+
+        uint256 randomValue = uint256(
+            keccak256(
+                abi.encodePacked(
+                    block.prevrandao,
+                    block.timestamp,
+                    msg.sender,
+                    tokenId
+                )
+            )
+        ) % 100;
+
+        string memory rarity;
+
+        if (randomValue < 5) {
+            rarity = "Legendary";
+        } else if (randomValue < 20) {
+            rarity = "Epic";
+        } else if (randomValue < 50) {
+            rarity = "Rare";
+        } else {
+            rarity = "Common";
+        }
+
+        cardRarity[tokenId] = rarity;
+
+        _safeMint(msg.sender, tokenId);
+
+        emit GachaOpened(
+            msg.sender,
+            tokenId,
+            rarity
+        );
+    }
+
+    function setMintPrice(uint256 newPrice)
+        external
+        onlyOwner
+    {
+        mintPrice = newPrice;
+    }
+
+    function withdraw()
+        external
+        onlyOwner
+    {
+        payable(owner()).transfer(address(this).balance);
+    }
+}
